@@ -7,13 +7,15 @@ Take a feature idea through the full GitHub Spec Kit Spec-Driven Development cyc
 Core inputs (required):
 - **Feature description** — one or more sentences describing what to build. This becomes the `$ARGUMENTS` input to every phase.
 - **Acceptance criteria** — the concrete, verifiable conditions that define "done" for this feature. These anchor the spec, are validated by `analyze`, and are what implementation must satisfy.
+- **Ticket number** — the tracking ticket/issue identifier for this work. Used to name the branch (see step 2).
+- **Base branch** — the branch to start from and target the PR into: typically `develop` or `main`, but it may be any branch (e.g. another feature branch) the user explicitly names. If the user has not specified it, **stop and clarify with the user** before creating any branch; do not assume a default.
 
 Additional context (optional):
 - **`{{ADDITIONAL_CONTEXT}}`** — any extra context the user wants to provide: constraints, scope hints (e.g. `full`, `backend-only`, `frontend-only`), relevant files/links/prior art, non-goals, or whether to stop after `plan`/`tasks` for review vs. run straight through `implement`. Fold this into the feature description passed to each phase.
 
 ## Procedure
-1. Verify the Spec Kit install and prepare the environment: confirm `.specify/` exists (and `.specify/extensions.yml` if extensions are used) and that the project's Spec Kit commands are available; stop and tell the user if the project is not Spec Kit-initialized. Confirm a project constitution exists (e.g. `.specify/memory/constitution.md`) — if it does not, run the `constitution` command first (or ask the user for principles). Install dependencies and run the project's build/setup so environment issues surface before implementation (check README/AGENTS.md/contributing docs for the exact commands).
-2. Run the `specify` command with the feature description as `$ARGUMENTS`, including the acceptance criteria and any `{{ADDITIONAL_CONTEXT}}` so they are captured in the spec. If the git extension is enabled, the `before_specify` hook creates a numbered feature branch (`NNN-feature-name`); the phase writes `specs/NNN-feature-name/spec.md`. Confirm the branch (or current branch) and spec were created, and that the acceptance criteria are reflected in the spec.
+1. Confirm the base branch, then verify the Spec Kit install and prepare the environment. If the user did not specify a base branch (`develop`, `main`, or another branch they name), stop and clarify before doing anything else; then check out that base branch and pull the latest so all work starts from it. Confirm `.specify/` exists (and `.specify/extensions.yml` if extensions are used) and that the project's Spec Kit commands are available; stop and tell the user if the project is not Spec Kit-initialized. Confirm a project constitution exists (e.g. `.specify/memory/constitution.md`) — if it does not, run the `constitution` command first (or ask the user for principles). Install dependencies and run the project's build/setup so environment issues surface before implementation (check README/AGENTS.md/contributing docs for the exact commands).
+2. Run the `specify` command with the feature description as `$ARGUMENTS`, including the acceptance criteria and any `{{ADDITIONAL_CONTEXT}}` so they are captured in the spec. If the git extension is enabled, the `before_specify` hook first creates its own numbered branch (`NNN-feature-name`); once it completes, **rename the working branch to the required convention** `feature/<ticket-number>/<short-description>` (see naming rules below) with `git branch -m <new-name>`. The phase writes `specs/NNN-feature-name/spec.md`. Confirm the branch follows the convention and that the spec was created with the acceptance criteria reflected in it.
 3. **Required — clarify**: run the `clarify` command to resolve underspecified areas (up to 5 targeted questions encoded back into the spec). Auto-answer questions you can confidently infer from the description, acceptance criteria, and codebase, and **record each inferred answer as an explicit assumption in the spec**; surface only the genuinely ambiguous questions to the user and wait for their answers. Do not proceed to planning until `spec.md` has no unresolved `[NEEDS CLARIFICATION]` markers.
 4. **Review gate — spec**: share a concise summary of `spec.md`, the clarifications, and any recorded assumptions with the user and get approval before planning. Abort if rejected.
 5. Run the `plan` command with the same description. It generates `plan.md` plus design artifacts (commonly `research.md`, `data-model.md`, `contracts/`, `quickstart.md`) and, when the agent-context hook is enabled, refreshes the agent context file (e.g. `AGENTS.md`). Confirm the artifacts exist.
@@ -22,19 +24,23 @@ Additional context (optional):
 8. **Required — analyze**: run the `analyze` command for a non-destructive cross-artifact consistency check across `spec.md`, `plan.md`, and `tasks.md`. Resolve any high-severity findings (update the relevant artifact and re-run) before implementing. Optionally run `checklist` to unit-test requirements quality.
 9. Run the `implement` command to execute `tasks.md` in dependency order. When git auto-commit hooks are enabled, let them record progress; do not fight them.
 10. Validate: run the project's test/lint/build suite (find the exact commands in README/AGENTS.md/CONTRIBUTING or CI config) and fix failures until green, then confirm every acceptance criterion is satisfied by the implementation.
-11. Open a PR from the feature branch, referencing the `specs/NNN-feature-name/` artifacts, and share the link. Do not squash or discard the Spec Kit auto-commits.
+11. Open a PR from the feature branch **into the specified base branch** with the title `<ticket-number> <feature description>` (e.g. `1234 Add markdown report output`), referencing the `specs/NNN-feature-name/` artifacts in the body, and share the link. Do not squash or discard the Spec Kit auto-commits.
 
 ## Specifications
 - A `specs/NNN-feature-name/` directory exists containing at least `spec.md`, `plan.md`, and `tasks.md`.
 - `clarify` was run and `spec.md` has no unresolved `[NEEDS CLARIFICATION]` markers.
 - `analyze` was run and reports no unresolved high-severity inconsistencies.
-- Implementation matches `tasks.md` and satisfies every acceptance criterion; work happens on the Spec Kit feature branch, not the default branch.
+- The working branch follows the convention `feature/<ticket-number>/<short-description>` (all lowercase; `<short-description>` is a hyphen-separated slug of **fewer than 3 words**, e.g. `feature/1234/markdown-report`).
+- The PR title follows the convention `<ticket-number> <feature description>` (e.g. `1234 Add markdown report output`).
+- The feature branch was created from the user-specified base branch, and the PR targets that same base branch.
+- Implementation matches `tasks.md` and satisfies every acceptance criterion; work happens on the renamed feature branch, not directly on the base branch.
 - Validation: the project's test/lint/build suite passes locally and CI is green on the PR.
 - Deliverable: a PR into the working base branch with the full Spec Kit artifact set plus implementation, and a summary linking the spec/plan/tasks.
 
 ## Advice and Pointers
 - If a review gate is rejected, `analyze` surfaces high-severity findings you cannot resolve within the current artifacts, or a phase fails repeatedly, stop and escalate to the user with a concise summary rather than forcing the workflow forward.
 - Command invocation depends on the integration: some projects expose the phases as agent skills (e.g. `speckit-specify`), others as slash commands (e.g. `/speckit.specify`). Use whichever the project provides; the phase order is identical.
+- Branch naming rules: `feature/<ticket-number>/<short-description>`, all lowercase, `<short-description>` a hyphen-separated slug of **fewer than 3 words** derived from the feature (e.g. `feature/1234/version-command`). Rename with `git branch -m` right after the Spec Kit branch hook runs; the `specs/NNN-*` directory keeps its own numbering and is unaffected.
 - Run the phases strictly in order; each consumes the previous phase's artifacts. Do not skip `specify`/`plan`.
 - Pass the same feature description as `$ARGUMENTS` to each phase so branch/feature resolution stays consistent.
 - If the git extension is enabled it auto-commits before/after phases (see `.specify/extensions/git/git-config.yml`); expect several `[Spec Kit] ...` commits — this is normal.
@@ -43,8 +49,10 @@ Additional context (optional):
 - If phase resolution seems off, inspect the current feature dir and available docs with `.specify/scripts/bash/check-prerequisites.sh --json` (or the PowerShell equivalent under `.specify/scripts/`).
 
 ## Forbidden Actions
+- Do not open the PR from a branch that does not follow `feature/<ticket-number>/<short-description>` (lowercase, `<short-description>` fewer than 3 words), and do not open a PR whose title omits the leading `<ticket-number>`.
+- Do not create a branch or start any phase before the base branch is known — if the user hasn't specified it, stop and clarify.
 - Do not run `implement` before `tasks.md` exists, or `plan` before an approved `spec.md`.
 - Do not skip the `clarify` or `analyze` steps — both are mandatory in this workflow.
 - Do not commit secrets or credentials, and do not run live/production flows unless the user explicitly requests it.
 - Do not hand-edit generated artifacts to force analyze/checks to pass — fix the underlying spec/plan/tasks and re-run the relevant phase.
-- Do not disable or bypass the Spec Kit git hooks, and do not commit directly to the default branch.
+- Do not disable or bypass the Spec Kit git hooks, and do not commit directly to the base branch.
